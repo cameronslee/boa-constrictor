@@ -1,5 +1,5 @@
 // This is a sample program for a boa contrictor file
 
-def main() {
+fn main() {
   out("Hello World");
 }

@@ -1,1 +1,1 @@
-gcc source.c lexer.c -o build/boa -Wall -Wextra
+gcc source.c lexer.c -o build/boa -Wall -Wextra -g
