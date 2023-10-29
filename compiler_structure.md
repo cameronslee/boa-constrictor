@@ -1,5 +1,5 @@
 # Structure of a Compiler
-
+```
 -------------------------
 Lexical Analysis (Lexer)
 Goal: Read characters from the input and group them into token objects
@@ -32,3 +32,5 @@ Code Optimizer
       |
       v
 Code Generator (Generate Machine Code)
+
+```
