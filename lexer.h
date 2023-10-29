@@ -1,6 +1,14 @@
 #ifndef LEXER_H
 #define LEXER_H
 
+#define INITIAL_CAPACITY 20
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#include <stdbool.h>
+
 typedef enum {
   IDENTIFIER,
   KEYWORD,
@@ -13,24 +21,25 @@ typedef enum {
 typedef struct {
   TokenName type;
   char *value;
-} Token; 
+} token_T;
 
 typedef struct {
-  Token *array;
-  size_t size;
-  size_t capacity;
-} TokenArray;
+  char *src;
+  size_t src_size;
+  char current;
+  unsigned int index;
+  token_T *tokens;
+} lexer_T;
 
+lexer_T * init_lexer(char *buffer, size_t buffer_length);
+ 
+void lexer_advance(lexer_T *lexer);
 
-TokenArray *lexer(FILE *f);
-long get_file_size(FILE *f);
-void add_token(TokenArray *tokens, Token token);
+char peek(lexer_T *lexer, int index);
 
-// this should check if we can read something in
-//returns the index we can continue checking at
-//returns -1 if fails
-int peek(char *buffer, int index);
-Token *generate_token(char *lexeme, int size);
-  
+void lexer_skip_whitespace(lexer_T *lexer);
 
+bool lexer_teardown(lexer_T *lexer);
+
+token_T * lexer_parse(lexer_T *lexer);
 #endif
