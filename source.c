@@ -3,8 +3,26 @@
 
 #include "lexer.h"
 
-int main(int argc, char **argv) {
+size_t get_file_size(FILE *f)
+{
+	size_t file_size;
+	if( fseek(f, 0, SEEK_END) != 0 ) exit(EXIT_FAILURE); 
 
+	file_size = ftell(f);
+	rewind(f);
+	return file_size;
+}
+
+void read_file(FILE * f, char *buffer, size_t file_size) {
+	if (file_size == 1) exit(EXIT_FAILURE);
+
+	fread(buffer, 1, file_size, f);
+	if (buffer == NULL) exit(EXIT_FAILURE);
+
+	fclose(f); 
+}
+
+int main(int argc, char **argv) {
   if (argc != 2) {
     printf("%s\n", "usage: boa <filename>");
     exit(1);
@@ -16,20 +34,20 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
-  TokenArray *tokens = lexer(f);
+  printf("%s\n", "Hello Boa Constrictor");
 
+  // File buffer setup
+  size_t file_size = get_file_size(f);
+	char *buffer = malloc(file_size * sizeof(char));
 
-  printf("NUM TOKENS %zu\n", tokens->size); 
-  printf("CAPACITY %zu\n", tokens->capacity); 
-  Token t = tokens->array[0];
+  read_file(f, buffer, file_size);
 
-  for(int i = 0; t.value[i] != '\0'; i++){
-    printf("%c", t.value[i]);
-  }
+  printf("%s\n", buffer); 
 
+  /* Lex entry point */
+  lexer_T *lexer = init_lexer(buffer, file_size);
 
-
-  printf("\n%s\n", "Hello Boa Constrictor");
+  free(buffer);
 
   return 0;
 }
