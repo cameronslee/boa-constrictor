@@ -54,6 +54,8 @@ dkms.conf
 # MISC
 *.swp
 .DS_Store
+.dSYM
+.vscode
 
 # Boa build (BUILD IT YOURSELF!)
 /build/boa
