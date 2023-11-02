@@ -34,3 +34,17 @@ Code Optimizer
 Code Generator (Generate Machine Code)
 
 ```
+
+Notes
+- parser will call the lexer multiple times until it has
+  reached the end of the file and the lexer has generated
+  all of the necessary tokens
+
+
+# Design Specs
+## Notes: One pass compiler
+
+```
+// Current stage of development
+Lexer stage (To generate tokens) -> Parser (perform syntactical analysis with the tokens)
+```
