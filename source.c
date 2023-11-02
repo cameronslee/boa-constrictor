@@ -1,10 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 #include "lexer.h"
+#include "token.h"
 
-size_t get_file_size(FILE *f)
-{
+size_t get_file_size(FILE *f) {
 	size_t file_size;
 	if( fseek(f, 0, SEEK_END) != 0 ) exit(EXIT_FAILURE); 
 
@@ -46,6 +47,13 @@ int main(int argc, char **argv) {
 
   /* Lex entry point */
   lexer_T *lexer = init_lexer(buffer, file_size);
+
+  /* Print symbol table */
+  int p = lexer_analyze(lexer);
+  while (p != DONE) {
+    printf("Token: %s\nToken Type: %s\n", lexer->symtable->table[p].value, get_token_name(lexer->symtable->table[p].type));
+  p = lexer_analyze(lexer);
+  }
 
   free(buffer);
 
