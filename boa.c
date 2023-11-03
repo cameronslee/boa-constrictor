@@ -8,7 +8,8 @@
 #include <stdbool.h>
 
 #define INITIAL_CAPACITY 100 // initial capacity of symbol table
-#define LEX_BUFF_CAPACITY 128 //lexer buffer capacity
+#define LEX_BUFF_CAPACITY 128 // lexer buffer capacity
+#define MAX_OPERATOR_LEN 2 // language specific rule
 
 #define DONE 69420 // lexer done reading file buffer
 
@@ -51,41 +52,44 @@ typedef struct {
  * Keywords, Separators and Operators are defined here
  * =======================================================================*/
 
- /* KEYWORDS
-  * Reserved keywords for the language
-  * */
- token_T keywords[] = {
-   {"int", KEYWORD},
-   {"string", KEYWORD},
-   {"bool", KEYWORD},
-   {"print", KEYWORD},
-   {"return", KEYWORD},
- };
+/* KEYWORDS
+ * Reserved keywords for the language
+ * */
+token_T keywords[] = {
+  {"int", KEYWORD},
+  {"string", KEYWORD},
+  {"bool", KEYWORD},
+  {"print", KEYWORD},
+  {"bind", KEYWORD},
+  {"constrict", KEYWORD},
+  {"fn", KEYWORD},
+  {"return", KEYWORD},
+};
 
- size_t keyword_count = sizeof(keywords) / sizeof(keywords[0]);
+size_t keyword_count = sizeof(keywords) / sizeof(keywords[0]);
 
- token_T separators[] = {
-   {";", SEPARATOR},
-   {"{", SEPARATOR},
-   {"}", SEPARATOR},
-   {"(", SEPARATOR},
-   {")", SEPARATOR},
- };
+token_T separators[] = {
+  {";", SEPARATOR},
+  {"{", SEPARATOR},
+  {"}", SEPARATOR},
+  {"(", SEPARATOR},
+  {")", SEPARATOR},
+};
 
- size_t separator_count = sizeof(separators) / sizeof(separators[0]);
+size_t separator_count = sizeof(separators) / sizeof(separators[0]);
 
- token_T operators[] = {
-   {"=", OPERATOR},
-   {"+", OPERATOR},
-   {"-", OPERATOR},
-   {"*", OPERATOR},
-   {"<", OPERATOR},
-   {">", OPERATOR},
-   {">=", OPERATOR},
-   {"<=", OPERATOR},
- };
 
- size_t operator_count = sizeof(operators) / sizeof(operators[0]);
+// TODO support operators of len 2
+token_T operators[] = {
+  {"=", OPERATOR},
+  {"+", OPERATOR},
+  {"-", OPERATOR},
+  {"*", OPERATOR},
+  {"<", OPERATOR},
+  {">", OPERATOR},
+};
+
+size_t operator_count = sizeof(operators) / sizeof(operators[0]);
 
  /* LITERALS
   * Rules for reading literals:
@@ -97,6 +101,8 @@ typedef struct {
 /*  ============================= SYMBOL TABLE ===============================
  * Symbol table that holds all of the different types of tokens
  * init_symtable() will populate the symbol table with the predefined tokens
+
+ * TODO would like lookups to be O(1), refactor to hashmap
  * =======================================================================*/
 typedef struct {
   size_t size;
@@ -107,7 +113,7 @@ typedef struct {
 
 void print_symbol_table(symtable_T *t) {
   printf("\n%s\n", "===== SYMBOL TABLE =====");
-  for (int i = 0; i < (int)t->size; i++) {
+  for (size_t i = 0; i <= t->size; i++) {
     printf("Token: %s\nToken Type: %s\n", t->table[i].value,
            get_token_name(t->table[i].type));
   }
@@ -209,7 +215,7 @@ void lexer_advance(lexer_T *lexer) {
  * returns -1 if an attempt is made to peek past the end of the buffer */
 char peek(lexer_T *lexer, int offset) {
   if ((lexer->index + offset) >= lexer->src_size) return -1;
-  return lexer->current + offset;
+  return lexer->src[lexer->index + offset];
 }
 
 void lexer_skip_whitespace(lexer_T *lexer) {
@@ -224,24 +230,42 @@ void lexer_skip_newline(lexer_T *lexer) {
   }
 }
 
+bool is_separator(lexer_T *lexer) {
+  for (size_t i = 0; i < separator_count; i++) {
+    if (lexer->current == *separators[i].value) return true;
+  }
+  return false;
+}
+
+// TODO these only work for operators that are of len 1
+bool is_operator(lexer_T *lexer) {
+  for (size_t i = 0; i < operator_count; i++) {
+    if (lexer->current == *operators[i].value) return true;
+  }
+  return false;
+}
+
 /* Main entry point of Lexer
  * This function operates on the instance of lexer, advnaces through each 
  * and returns the index of its location in the symbol table 
-
+ *
  * Designed to be called by the parser */
 int lexer_analyze(lexer_T *lexer) {
   char lex_buff[LEX_BUFF_CAPACITY];
-  int p, b = 0 ;
+  int p, b = 0;
+
   while (1) {
-    // Handle whitespace and tabs
+    /* Handle whitespace and tabs */
     if (lexer->current == ' ' || lexer->current == '\t') {
       lexer_skip_whitespace(lexer);
     }
-    // Handle newlines 
+    
+    /* Handle newlines */
     else if (lexer->current == '\n') {
       lexer_skip_newline(lexer);
     }
-    // Handle identifiers
+
+    /* Handle identifiers */
     else if (isalpha(lexer->current)) {
       while (isalnum(lexer->current)) {
         lex_buff[b] = lexer->current;
@@ -259,30 +283,51 @@ int lexer_analyze(lexer_T *lexer) {
       }
       return p;
     }
+
     /* Handle Literals */
     // String 
     else if (lexer->current == '"') {
-      
-    }
-    // Handle Separators - this might be interesting as it involves depth of scope
-    else if (isalnum(lexer->current)) {
-      while (isalnum(lexer->current)) {
-        lex_buff[b] = lexer->current;
-        lexer_advance(lexer);
+      char res = ' ';
+      lex_buff[b] = lexer->current;
+      while (res != -1) {
         b += 1;
-        if (b >= LEX_BUFF_CAPACITY) {
-          perror("error: lexer buffer capacity exceeded");
-          exit(1);
+        res = peek(lexer, b);
+        lex_buff[b] = res;
+        if (res == '"') {
+          lex_buff[b+1] = '\0';
+          p = insert(lexer->symtable, lex_buff, LITERAL);
+          for (int i = 0; i <= b; i++) lexer_advance(lexer);
+          return p;
         }
       }
-      lex_buff[b] = '\0';
-      p = lookup(lexer->symtable, lex_buff);
-      if (p == 0) {
-        p = insert(lexer->symtable, lex_buff, NONE);
+      if (res == -1) {
+        perror("error: missing a closing double quote");
+        exit(1);
       }
+    }
+
+    /* Handle Operators */
+    else if (is_operator(lexer)) {
+      lex_buff[b] = lexer->current;
+      lex_buff[b+1] = '\0';
+      p = lookup(lexer->symtable, lex_buff);
+      lexer_advance(lexer);
       return p;
     }
+
+    /* Handle Separators */
+    else if (is_separator(lexer)) {
+      lex_buff[b] = lexer->current;
+      lex_buff[b+1] = '\0';
+      p = lookup(lexer->symtable, lex_buff);
+      lexer_advance(lexer);
+      return p;
+    }
+
+    /* Handle EOF */
     else if(lexer->current == '\0') return DONE;
+
+    /* Handle Error */
     else return ERROR;
   }
 
@@ -320,6 +365,11 @@ bool parser_teardown(parser_T *parser) {
 
   return true;
 }
+/* ============================ CODE GENERATOR ==============================
+ * Code Generator Stub
+ * =======================================================================*/
+
+ // pass
 
 /* ================================ DRIVER =================================
  * Where all of the magic happens!
@@ -371,9 +421,9 @@ int main(int argc, char **argv) {
   /* Print symbols */
   int p = lexer_analyze(lexer);
   while (p != DONE) {
-    printf("Token: %s\nToken Type: %s\n", lexer->symtable->table[p].value, 
+    printf("Token: %s\nToken Type: %s\n\n", lexer->symtable->table[p].value, 
             get_token_name(lexer->symtable->table[p].type));
-  p = lexer_analyze(lexer);
+    p = lexer_analyze(lexer);
   }
 
   printf("%s\n", "===================");

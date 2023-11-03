@@ -1,1 +1,11 @@
-int foobar bar foo
+string foobar = "foo";
+
+string barfoo = "foo";
+
+fn hello() {
+  print("HALLO");
+
+}
+
+bind(barfoo);
+constrict(barfoo);
