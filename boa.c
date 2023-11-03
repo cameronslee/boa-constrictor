@@ -114,7 +114,7 @@ typedef struct {
 void print_symbol_table(symtable_T *t) {
   printf("\n%s\n", "===== SYMBOL TABLE =====");
   for (size_t i = 0; i <= t->size; i++) {
-    printf("Token: %s\nToken Type: %s\n", t->table[i].value,
+    printf("Token: %s\nToken Type: %s\n\n", t->table[i].value,
            get_token_name(t->table[i].type));
   }
   printf("%s\n", "========================");
