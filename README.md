@@ -1,5 +1,9 @@
 # Boa Constrictor 
 
-Toy compiler / Programming Language project
+An ongoing programming language and compiler project
 
-Just finished writing the lexer
+## Instructions
+```
+> /build/build.sh
+> ./boa <filename>
+```
