@@ -2,8 +2,8 @@
 
 An ongoing programming language and compiler project
 
-## Instructions
+## Usage
 ```
-> /build/build.sh
-> ./boa <filename>
+% /build/build.sh
+% ./boa <filename>
 ```
