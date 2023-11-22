@@ -12,29 +12,67 @@
 #define MAX_OPERATOR_LEN 2 // language specific rule
 
 #define DONE 69420 // lexer done reading file buffer
+#define ERROR 42069
 
 /*  ============================= TOKEN ====================================
  *
  * =======================================================================*/
+
 typedef enum {
-  IDENTIFIER, 
-  KEYWORD, 
-  SEPARATOR, 
-  OPERATOR, 
-  LITERAL, 
-  NONE,
-  ERROR,
+  SEMI, 
+  COMMA,
+  OCB,
+  CCB,
+  OP,
+  CP,
+  OS,
+  CS,
+  DOT,
+  EQ,
+  ADD,
+  SUB,
+  MUL,
+  GT,
+  LT,
+  ASSIGN,
+  INT,
+  STR,
+  BOOL,
+  PRINT,
+  BIND,
+  CONSTRICT,
+  FN,
+  RETURN,
+  IDENTIFIER,
 } token_name_T;
 
 const char * get_token_name(token_name_T type) {
   switch(type) {
-    case IDENTIFIER: return "IDENTIFIER";
-    case KEYWORD: return "KEYWORD";
-    case SEPARATOR: return "SEPARATOR";
-    case OPERATOR: return "OPERATOR";
-    case LITERAL: return "LITERAL";
-    case ERROR: return "ERROR";
-    case NONE: return "NONE";
+    case SEMI: return "SEMI";
+    case COMMA: return "COMMA";
+    case OCB: return "OCB";
+    case CCB: return "CCB";
+    case OP: return "OP";
+    case CP: return "CP";
+    case OS: return "OS";
+    case CS: return "CS";
+    case DOT: return "DOT";
+    case EQ: return "EQ";
+    case ADD: return "ADD";
+    case SUB: return "SUB";
+    case MUL: return "MUL";
+    case GT: return "GT";
+    case LT: return "OS";
+    case ASSIGN: return "ASSIGN";
+    case INT: return "INT";
+    case STR: return "STR";
+    case BOOL: return "BOOL";
+    case PRINT: return "PRINT";
+    case BIND: return "BIND";
+    case CONSTRICT: return "CONSTRICT";
+    case FN: return "FN";
+    case RETURN: return "RETURN";
+    case IDENTIFIER: return "IDENTIFIER"; //usr defined, TODO process after lex
   }
   return "ERROR";
 }
@@ -56,24 +94,24 @@ typedef struct {
  * Reserved keywords for the language
  * */
 token_T keywords[] = {
-  {"int", KEYWORD},
-  {"string", KEYWORD},
-  {"bool", KEYWORD},
-  {"print", KEYWORD},
-  {"bind", KEYWORD},
-  {"constrict", KEYWORD},
-  {"fn", KEYWORD},
-  {"return", KEYWORD},
+  {"int", INT},
+  {"string", STR},
+  {"bool", BOOL },
+  {"print", PRINT},
+  {"bind", BIND},
+  {"constrict", CONSTRICT},
+  {"fn", FN},
+  {"return", RETURN},
 };
 
 size_t keyword_count = sizeof(keywords) / sizeof(keywords[0]);
 
 token_T separators[] = {
-  {";", SEPARATOR},
-  {"{", SEPARATOR},
-  {"}", SEPARATOR},
-  {"(", SEPARATOR},
-  {")", SEPARATOR},
+  {";", SEMI},
+  {"{", OCB},
+  {"}", CCB},
+  {"(", OP},
+  {")", CP},
 };
 
 size_t separator_count = sizeof(separators) / sizeof(separators[0]);
@@ -81,22 +119,23 @@ size_t separator_count = sizeof(separators) / sizeof(separators[0]);
 
 // TODO support operators of len 2
 token_T operators[] = {
-  {"=", OPERATOR},
-  {"+", OPERATOR},
-  {"-", OPERATOR},
-  {"*", OPERATOR},
-  {"<", OPERATOR},
-  {">", OPERATOR},
+  {"=", ASSIGN},
+  {"==", EQ},
+  {"+", ADD},
+  {"-", SUB},
+  {"*", MUL},
+  {"<", GT},
+  {">", LT},
 };
 
 size_t operator_count = sizeof(operators) / sizeof(operators[0]);
 
- /* LITERALS
-  * Rules for reading literals:
-  *   Numerics: must all be numbers 
-  *   Strings: must be alphanum with len >= 1 and enclosed in " "
-  *   Char: must be a single alphanum enclosed in ' ' 
-  * */
+/* LITERALS
+ * Rules for reading literals:
+ *   Numerics: must all be numbers 
+ *   Strings: must be alphanum with len >= 1 and enclosed in " "
+ *   Char: must be a single alphanum enclosed in ' ' 
+ * */
 
 /*  ============================= SYMBOL TABLE ===============================
  * Symbol table that holds all of the different types of tokens
@@ -115,7 +154,7 @@ void print_symbol_table(symtable_T *t) {
   printf("\n%s\n", "===== SYMBOL TABLE =====");
   for (size_t i = 0; i <= t->size; i++) {
     printf("Token: %s\nToken Type: %s\n\n", t->table[i].value,
-           get_token_name(t->table[i].type));
+        get_token_name(t->table[i].type));
   }
   printf("%s\n", "========================");
 }
@@ -158,7 +197,7 @@ symtable_T *init_symtable(size_t initial_size) {
   symtable->last_pos = 0;
   symtable->size = 0;
   symtable->capacity= initial_size;
-  
+
   //load keywords
   for (size_t i = 0; i < keyword_count; i++) {
     insert(symtable, keywords[i].value, keywords[i].type);
@@ -259,7 +298,7 @@ int lexer_analyze(lexer_T *lexer) {
     if (lexer->current == ' ' || lexer->current == '\t') {
       lexer_skip_whitespace(lexer);
     }
-    
+
     /* Handle newlines */
     else if (lexer->current == '\n') {
       lexer_skip_newline(lexer);
@@ -279,7 +318,7 @@ int lexer_analyze(lexer_T *lexer) {
       lex_buff[b] = '\0';
       p = lookup(lexer->symtable, lex_buff);
       if (p == 0) {
-        p = insert(lexer->symtable, lex_buff, IDENTIFIER);
+        p = insert(lexer->symtable, lex_buff, IDENTIFIER); 
       }
       return p;
     }
@@ -295,7 +334,7 @@ int lexer_analyze(lexer_T *lexer) {
         lex_buff[b] = res;
         if (res == '"') {
           lex_buff[b+1] = '\0';
-          p = insert(lexer->symtable, lex_buff, LITERAL);
+          p = insert(lexer->symtable, lex_buff, STR);
           for (int i = 0; i <= b; i++) lexer_advance(lexer);
           return p;
         }
@@ -352,11 +391,24 @@ typedef struct {
   token_T *tokens;
 } parser_T;
 
-parser_T * parser_init(lexer_T *lexer) {
+parser_T * init_parser(lexer_T *lexer) {
   parser_T *parser = calloc(1, sizeof(parser_T));
   parser->lexer = lexer;
 
   return parser;
+}
+
+void parser_parse(parser_T *parser) {
+  lexer_T *lexer = parser->lexer;
+  int p = lexer_analyze(lexer);
+  while (p != DONE) {
+    printf("Token: %s\nToken Type: %s\n\n", lexer->symtable->table[p].value, 
+        get_token_name(lexer->symtable->table[p].type));
+    p = lexer_analyze(lexer);
+  }
+
+  printf("%s\n", "===================");
+
 }
 
 bool parser_teardown(parser_T *parser) {
@@ -369,27 +421,27 @@ bool parser_teardown(parser_T *parser) {
  * Code Generator Stub
  * =======================================================================*/
 
- // pass
+// pass
 
 /* ================================ DRIVER =================================
  * Where all of the magic happens!
  * =======================================================================*/
 size_t get_file_size(FILE *f) {
-	size_t file_size;
-	if( fseek(f, 0, SEEK_END) != 0 ) exit(EXIT_FAILURE); 
+  size_t file_size;
+  if( fseek(f, 0, SEEK_END) != 0 ) exit(EXIT_FAILURE); 
 
-	file_size = ftell(f);
-	rewind(f);
-	return file_size;
+  file_size = ftell(f);
+  rewind(f);
+  return file_size;
 }
 
 void read_file(FILE * f, char *buffer, size_t file_size) {
-	if (file_size == 1) exit(EXIT_FAILURE);
+  if (file_size == 1) exit(EXIT_FAILURE);
 
-	fread(buffer, 1, file_size, f);
-	if (buffer == NULL) exit(EXIT_FAILURE);
+  fread(buffer, 1, file_size, f);
+  if (buffer == NULL) exit(EXIT_FAILURE);
 
-	fclose(f); 
+  fclose(f); 
 }
 
 int main(int argc, char **argv) {
@@ -408,7 +460,7 @@ int main(int argc, char **argv) {
 
   /* File buffer setup */
   size_t file_size = get_file_size(f);
-	char *buffer = malloc(file_size * sizeof(char));
+  char *buffer = malloc(file_size * sizeof(char));
 
   read_file(f, buffer, file_size);
 
@@ -418,17 +470,12 @@ int main(int argc, char **argv) {
   printf("\n%s\n", "====== Lexer ======");
   lexer_T *lexer = init_lexer(buffer, file_size);
 
-  /* Print symbols */
-  int p = lexer_analyze(lexer);
-  while (p != DONE) {
-    printf("Token: %s\nToken Type: %s\n\n", lexer->symtable->table[p].value, 
-            get_token_name(lexer->symtable->table[p].type));
-    p = lexer_analyze(lexer);
-  }
+  /* Parser entry point */
+  parser_T *parser = init_parser(lexer);
+  parser_parse(parser);
 
-  printf("%s\n", "===================");
-
-  print_symbol_table(lexer->symtable);
+  /* Print contents of symbol table */
+  // print_symbol_table(lexer->symtable);
 
   free(buffer);
 
