@@ -31,3 +31,20 @@ Chat Gippity has some ideas
 20. **Hug**: A function for grouping or nesting code blocks or elements.
 ```
 
+
+# BNF Spec
+``` 
+program = block "." .
+
+block
+
+----------------------------
+statement = identifier ":=" expression 
+
+
+----------------------------
+condition
+
+term factor
+
+factor = ident | number | expression

@@ -1,1 +1,1 @@
-gcc boa.c -o build/boa -Wall -Wextra -g
+clang boa.c -o build/boa -Wall -Wextra -g
