@@ -44,6 +44,7 @@ typedef enum {
   FN,
   RETURN,
   IDENTIFIER,
+  LITERAL,
 } token_name_T;
 
 const char * get_token_name(token_name_T type) {
@@ -73,6 +74,7 @@ const char * get_token_name(token_name_T type) {
     case FN: return "FN";
     case RETURN: return "RETURN";
     case IDENTIFIER: return "IDENTIFIER"; //usr defined, TODO process after lex
+    case LITERAL: return "LITERAL"; 
   }
   return "ERROR";
 }
@@ -276,6 +278,13 @@ bool is_separator(lexer_T *lexer) {
   return false;
 }
 
+bool is_keyword(lexer_T *lexer) {
+  for (size_t i = 0; i < keyword_count; i++) {
+    if (lexer->current == *keywords[i].value) return true;
+  }
+  return false;
+}
+
 // TODO these only work for operators that are of len 1
 bool is_operator(lexer_T *lexer) {
   for (size_t i = 0; i < operator_count; i++) {
@@ -334,7 +343,7 @@ int lexer_analyze(lexer_T *lexer) {
         lex_buff[b] = res;
         if (res == '"') {
           lex_buff[b+1] = '\0';
-          p = insert(lexer->symtable, lex_buff, STR);
+          p = insert(lexer->symtable, lex_buff, LITERAL);
           for (int i = 0; i <= b; i++) lexer_advance(lexer);
           return p;
         }
@@ -386,29 +395,112 @@ bool lexer_teardown(lexer_T *lexer) {
  * Responsible for grouping th etokens into grammatical phrases.
  * which are represented as a parse tree / syntax tree
  * =======================================================================*/
-typedef struct {
-  lexer_T *lexer;
-  token_T *tokens;
-} parser_T;
 
-parser_T * init_parser(lexer_T *lexer) {
-  parser_T *parser = calloc(1, sizeof(parser_T));
-  parser->lexer = lexer;
+typedef struct node_T node_T;
 
-  return parser;
+struct node_T {
+  node_T *left;
+  node_T *right;
+  char *value;
+  token_name_T type;
+};
+
+void print_inorder(node_T *root) {
+  if (root == NULL) return;
+  print_inorder(root->left);
+  printf("%s, %u\n", root->value, root->type);
+  print_inorder(root->right);
 }
 
-void parser_parse(parser_T *parser) {
+node_T *init_node() {
+  node_T *n = malloc(sizeof(node_T));
+  n->left = NULL;
+  n->left = NULL;
+
+  return n;
+}
+
+node_T *new_identifier_node(char *identifier) {
+  node_T *n = malloc(sizeof(node_T));
+  n->value = identifier;
+  n->type = IDENTIFIER;
+  return n;
+}
+
+node_T *new_literal_node(char *literal) {
+  node_T *n = malloc(sizeof(node_T));
+  n->value = literal;
+  n->type = LITERAL;
+  n->left = NULL;
+  n->right = NULL;
+
+  return n;
+}
+
+node_T *new_statement_node(char *identifier, token_name_T type, node_T *left, node_T *right) {
+  node_T *n = malloc(sizeof(node_T));
+  n->value = identifier;
+  n->type = type;
+
+  n->left = left;
+  n->right = right;
+  
+  return n;
+}
+
+typedef struct {
+  lexer_T *lexer;
+  node_T *ast;
+} parser_T;
+
+node_T *parse(parser_T *parser); //forward declaration
+
+// Statement               STR IDENTIFIER := EXPRESSION
+node_T *parse_statement(parser_T *parser, char *identifier, token_name_T type) {
+  node_T *left = parse(parser); // IDENTIFIER
+  int p = lexer_analyze(parser->lexer); // consume ASSIGN operator
+  node_T *right = parse(parser); // EXPRESSION
+
+  return new_statement_node(identifier, type, left, right);
+}
+
+node_T *parse_identifier(char *identifier) {
+  return new_identifier_node(identifier);
+}
+
+node_T *parse_literal(parser_T *parser, char *literal) {
+  node_T *res = new_literal_node(literal);
+  int p = lexer_analyze(parser->lexer); // consume SEMI operator
+
+  return res;
+}
+
+node_T *parse(parser_T *parser) {
   lexer_T *lexer = parser->lexer;
   int p = lexer_analyze(lexer);
-  while (p != DONE) {
-    printf("Token: %s\nToken Type: %s\n\n", lexer->symtable->table[p].value, 
-        get_token_name(lexer->symtable->table[p].type));
-    p = lexer_analyze(lexer);
+  char *curr_val = lexer->symtable->table[p].value;
+  token_name_T curr_type = lexer->symtable->table[p].type;
+
+  // Build AST
+  switch (curr_type) {
+    case (STR): 
+      return parse_statement(parser, curr_val, curr_type);
+    case (IDENTIFIER): 
+      return parse_identifier(curr_val);
+    case (LITERAL): 
+      return parse_literal(parser, curr_val);
+    default: 
+      perror("error in AST construction");
+      exit(1);
   }
+}
 
-  printf("%s\n", "===================");
+parser_T * run_parser(lexer_T *lexer) {
+  parser_T *parser = malloc(sizeof(parser_T));
+  parser->lexer = lexer;
+  parser->ast = parse(parser);
 
+  return parser;
 }
 
 bool parser_teardown(parser_T *parser) {
@@ -428,7 +520,7 @@ bool parser_teardown(parser_T *parser) {
  * =======================================================================*/
 size_t get_file_size(FILE *f) {
   size_t file_size;
-  if( fseek(f, 0, SEEK_END) != 0 ) exit(EXIT_FAILURE); 
+  if (fseek(f, 0, SEEK_END) != 0 ) exit(EXIT_FAILURE); 
 
   file_size = ftell(f);
   rewind(f);
@@ -471,8 +563,10 @@ int main(int argc, char **argv) {
   lexer_T *lexer = init_lexer(buffer, file_size);
 
   /* Parser entry point */
-  parser_T *parser = init_parser(lexer);
-  parser_parse(parser);
+  parser_T *parser = run_parser(lexer);
+
+  // parser should have an AST setup now
+  print_inorder(parser->ast);
 
   /* Print contents of symbol table */
   // print_symbol_table(lexer->symtable);
