@@ -11,11 +11,14 @@
 #define LEX_BUFF_CAPACITY 128 // lexer buffer capacity
 #define MAX_OPERATOR_LEN 2 // language specific rule
 
+#define MAX_CHILDREN 100 //TODO TEMPORARY SIZE FOR AST!!!!!!!!!!!!!!!!!!!!!
+
 #define DONE 69420 // lexer done reading file buffer
 #define ERROR 42069
 
 /*  ============================= TOKEN ====================================
- *
+ * TODO could consider refactoring to start values at 255
+ * For single char tokens to use their own ascii value
  * =======================================================================*/
 
 typedef enum {
@@ -142,8 +145,6 @@ size_t operator_count = sizeof(operators) / sizeof(operators[0]);
 /*  ============================= SYMBOL TABLE ===============================
  * Symbol table that holds all of the different types of tokens
  * init_symtable() will populate the symbol table with the predefined tokens
-
- * TODO would like lookups to be O(1), refactor to hashmap
  * =======================================================================*/
 typedef struct {
   size_t size;
@@ -252,13 +253,6 @@ void lexer_advance(lexer_T *lexer) {
   }
 }
 
-/* Peeks at the next character in the file buffer
- * returns -1 if an attempt is made to peek past the end of the buffer */
-char peek(lexer_T *lexer, int offset) {
-  if ((lexer->index + offset) >= lexer->src_size) return -1;
-  return lexer->src[lexer->index + offset];
-}
-
 void lexer_skip_whitespace(lexer_T *lexer) {
   while (lexer->current == ' ' || lexer->current == '\t') {
     lexer_advance(lexer);
@@ -292,6 +286,72 @@ bool is_operator(lexer_T *lexer) {
   }
   return false;
 }
+/* Peeks at the next character in the file buffer
+ * returns -1 if an attempt is made to peek past the end of the buffer */
+char peek(lexer_T *lexer, int offset) {
+  if ((lexer->index + offset) >= lexer->src_size) return -1;
+  return lexer->src[lexer->index + offset];
+}
+
+/* Peeks at next token in file buffer 
+ * returns token type on success, error on failure */
+token_name_T peek_next_token(lexer_T *lexer) {
+  int p,b = 0;
+  char buf[LEX_BUFF_CAPACITY];
+  token_name_T res;
+
+  /* peek identifer */
+  if (isalpha(lexer->current)) {
+    buf[b] = lexer->current;
+    while (isalnum(lexer->current)) {
+      b += 1;
+      if (b >= LEX_BUFF_CAPACITY) {
+        perror("error: lexer buffer capacity exceeded");
+        exit(1);
+      }
+    }
+    buf[b] = '\0';
+    return IDENTIFIER;
+  }
+
+  /* peek literal string */
+  else if (lexer->current == '"') {
+    char res = ' ';
+    buf[b] = lexer->current;
+    while (res != -1) {
+      b += 1;
+      res = peek(lexer,b);
+      buf[b] = res;
+      if (res == '"') {
+        buf[b+1] = '\0';
+        return LITERAL;
+      }
+    }
+  }
+
+  /* Handle Operators */
+  else if (is_operator(lexer)) {
+    buf[b] = lexer->current;
+    buf[b+1] = '\0';
+    p = lookup(lexer->symtable, buf);
+    res = lexer->symtable->table[p].type;
+  }
+
+  /* Handle Separators */
+  else if (is_separator(lexer)) {
+    buf[b] = lexer->current;
+    buf[b+1] = '\0';
+    p = lookup(lexer->symtable, buf);
+    res = lexer->symtable->table[p].type;
+    return res;
+  }
+
+  /* Handle EOF */
+  else if(lexer->current == '\0') return DONE;
+
+  return ERROR;
+}
+
 
 /* Main entry point of Lexer
  * This function operates on the instance of lexer, advnaces through each 
@@ -399,24 +459,16 @@ bool lexer_teardown(lexer_T *lexer) {
 typedef struct node_T node_T;
 
 struct node_T {
-  node_T *left;
-  node_T *right;
+  node_T *children;
+  int num_children;
   char *value;
   token_name_T type;
 };
 
-void print_inorder(node_T *root) {
-  if (root == NULL) return;
-  print_inorder(root->left);
-  printf("%s, %u\n", root->value, root->type);
-  print_inorder(root->right);
-}
-
 node_T *init_node() {
   node_T *n = malloc(sizeof(node_T));
-  n->left = NULL;
-  n->left = NULL;
-
+  n->children = malloc(MAX_CHILDREN * sizeof(node_T));
+  n->num_children = 0;
   return n;
 }
 
@@ -431,20 +483,6 @@ node_T *new_literal_node(char *literal) {
   node_T *n = malloc(sizeof(node_T));
   n->value = literal;
   n->type = LITERAL;
-  n->left = NULL;
-  n->right = NULL;
-
-  return n;
-}
-
-node_T *new_statement_node(char *identifier, token_name_T type, node_T *left, node_T *right) {
-  node_T *n = malloc(sizeof(node_T));
-  n->value = identifier;
-  n->type = type;
-
-  n->left = left;
-  n->right = right;
-  
   return n;
 }
 
@@ -455,25 +493,17 @@ typedef struct {
 
 node_T *parse(parser_T *parser); //forward declaration
 
+/*
 // Statement               STR IDENTIFIER := EXPRESSION
 node_T *parse_statement(parser_T *parser, char *identifier, token_name_T type) {
-  node_T *left = parse(parser); // IDENTIFIER
-  int p = lexer_analyze(parser->lexer); // consume ASSIGN operator
-  node_T *right = parse(parser); // EXPRESSION
-
-  return new_statement_node(identifier, type, left, right);
 }
 
 node_T *parse_identifier(char *identifier) {
-  return new_identifier_node(identifier);
 }
 
 node_T *parse_literal(parser_T *parser, char *literal) {
-  node_T *res = new_literal_node(literal);
-  int p = lexer_analyze(parser->lexer); // consume SEMI operator
-
-  return res;
 }
+*/
 
 node_T *parse(parser_T *parser) {
   lexer_T *lexer = parser->lexer;
@@ -484,11 +514,11 @@ node_T *parse(parser_T *parser) {
   // Build AST
   switch (curr_type) {
     case (STR): 
-      return parse_statement(parser, curr_val, curr_type);
+      //return parse_statement(parser, curr_val, curr_type);
     case (IDENTIFIER): 
-      return parse_identifier(curr_val);
+      //return parse_identifier(curr_val);
     case (LITERAL): 
-      return parse_literal(parser, curr_val);
+      //return parse_literal(parser, curr_val);
     default: 
       perror("error in AST construction");
       exit(1);
@@ -566,7 +596,6 @@ int main(int argc, char **argv) {
   parser_T *parser = run_parser(lexer);
 
   // parser should have an AST setup now
-  print_inorder(parser->ast);
 
   /* Print contents of symbol table */
   // print_symbol_table(lexer->symtable);
