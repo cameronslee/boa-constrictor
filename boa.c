@@ -298,31 +298,40 @@ char peek(lexer_T *lexer, int offset) {
 token_name_T peek_next_token(lexer_T *lexer) {
   int p,b = 0;
   char buf[LEX_BUFF_CAPACITY];
-  token_name_T res;
+  token_name_T name;
+  char curr;
 
-  /* peek identifer */
+  /* peek keyword identifer */
   if (isalpha(lexer->current)) {
     buf[b] = lexer->current;
-    while (isalnum(lexer->current)) {
+    curr = lexer->current;
+    while (isalnum(curr)) {
       b += 1;
+      curr = peek(lexer, b);
+      buf[b] = curr;
       if (b >= LEX_BUFF_CAPACITY) {
-        perror("error: lexer buffer capacity exceeded");
+        perror("error: lexer buffer capacity exceeded in token peek");
         exit(1);
       }
     }
     buf[b] = '\0';
-    return IDENTIFIER;
+
+    p = lookup(lexer->symtable, buf);
+    printf("Peek Buff %s\n", buf);
+    name = lexer->symtable->table[p].type;
+
+    return name;
   }
 
   /* peek literal string */
   else if (lexer->current == '"') {
-    char res = ' ';
     buf[b] = lexer->current;
-    while (res != -1) {
+    curr = lexer->current;
+    while (curr != -1) {
       b += 1;
-      res = peek(lexer,b);
-      buf[b] = res;
-      if (res == '"') {
+      curr = peek(lexer,b);
+      buf[b] = curr;
+      if (curr == '"') {
         buf[b+1] = '\0';
         return LITERAL;
       }
@@ -334,7 +343,8 @@ token_name_T peek_next_token(lexer_T *lexer) {
     buf[b] = lexer->current;
     buf[b+1] = '\0';
     p = lookup(lexer->symtable, buf);
-    res = lexer->symtable->table[p].type;
+    name = lexer->symtable->table[p].type;
+    return name;
   }
 
   /* Handle Separators */
@@ -342,8 +352,8 @@ token_name_T peek_next_token(lexer_T *lexer) {
     buf[b] = lexer->current;
     buf[b+1] = '\0';
     p = lookup(lexer->symtable, buf);
-    res = lexer->symtable->table[p].type;
-    return res;
+    name = lexer->symtable->table[p].type;
+    return name;
   }
 
   /* Handle EOF */
@@ -591,6 +601,8 @@ int main(int argc, char **argv) {
   /* Lexer entry point */
   printf("\n%s\n", "====== Lexer ======");
   lexer_T *lexer = init_lexer(buffer, file_size);
+
+  printf("TEST PEEK TOKEN %s\n", get_token_name(peek_next_token(lexer)));
 
   /* Parser entry point */
   parser_T *parser = run_parser(lexer);
