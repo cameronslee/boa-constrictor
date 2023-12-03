@@ -47,6 +47,8 @@ typedef enum {
   FN,
   RETURN,
 
+  PROGRAM, // this is used to denote the root node of th4e AST
+
   IDENTIFIER,
   LITERAL,
   VAR_DECL,
@@ -81,6 +83,7 @@ const char * get_token_name(token_name_T type) {
     case IDENTIFIER: return "IDENTIFIER"; 
     case VAR_DECL: return "VAR_DECL"; 
     case LITERAL: return "LITERAL"; 
+    case PROGRAM: return "PROGRAM"; 
   }
   return "ERROR";
 }
@@ -110,6 +113,7 @@ token_T keywords[] = {
   {"constrict", CONSTRICT},
   {"fn", FN},
   {"return", RETURN},
+  {"program", PROGRAM},
 };
 
 size_t keyword_count = sizeof(keywords) / sizeof(keywords[0]);
@@ -304,8 +308,12 @@ token_name_T peek_next_token(lexer_T *lexer) {
   char curr;
 
   /* Handle whitespace, tabs and newlines TODO hope this is ok*/
-  if (lexer->current == ' ' || lexer->current == '\t' || lexer->current == '\n') {
-    lexer_advance(lexer);
+  if (lexer->current == ' ' || lexer->current == '\t') {
+    lexer_skip_whitespace(lexer);
+  }
+
+  if (lexer->current == '\n') {
+    lexer_skip_newline(lexer);
   }
 
   /* peek keyword identifer */
@@ -487,13 +495,6 @@ struct node_T {
   token_name_T type;
 };
 
-void print_inorder(node_T *root) {
-  if (root == NULL) return;
-  print_inorder(&root->children[0]);
-  printf("%s\n", root->value);
-  print_inorder(&root->children[1]);
-}
-
 node_T *new_node(token_T token) {
   node_T *n = malloc(sizeof(node_T));
   n->children = malloc(MAX_CHILDREN * sizeof(node_T));
@@ -519,6 +520,17 @@ typedef struct {
 
 node_T *parse(lexer_T *lexer); //forward declaration
 
+// print AST level to level
+void print_ast(node_T *root) {
+  if (root == NULL) return;
+
+  printf("%s\n", root->value);
+
+  for (int i = 0; i < root->num_children; i++) {
+    print_ast(&root->children[i]);
+  }
+
+}
 // VarDecl       <Type> <Identifier> ASSIGN <String Literal> SEMI
 // TODO error checking
 node_T *parse_var_decl(lexer_T *lexer) {
@@ -557,13 +569,23 @@ node_T *parse_semi(lexer_T *lexer) {
   return new_node(lexer->symtable->table[p]);
 }
 
+void append_children(node_T *root, node_T *new_node) {
+  root->children[root->num_children] = *new_node;
+  root->num_children++;
+}
+
 node_T *parse(lexer_T *lexer) {
   token_name_T curr = peek_next_token(lexer);
 
   // Build AST
   switch (curr) {
-    case (STR): 
+    case (STR || INT): 
       return parse_var_decl(lexer); 
+    case (INT): 
+      return parse_var_decl(lexer); 
+    case (BOOL): 
+      return parse_var_decl(lexer); 
+
     case (IDENTIFIER): 
       return parse_identifier(lexer);
     case (LITERAL): 
@@ -582,7 +604,15 @@ node_T *parse(lexer_T *lexer) {
 parser_T * run_parser(lexer_T *lexer) {
   parser_T *parser = malloc(sizeof(parser_T));
   parser->lexer = lexer;
-  parser->ast = parse(lexer);
+  int p = lookup(lexer->symtable, "program"); 
+
+  node_T *root = new_node(lexer->symtable->table[p]);
+  
+  while (peek_next_token(lexer) != DONE) {
+    append_children(root, parse(lexer));
+  }
+
+  parser->ast = root;
 
   return parser;
 }
@@ -650,14 +680,16 @@ int main(int argc, char **argv) {
   parser_T *parser = run_parser(lexer);
 
   // parser should have an AST setup now
-  printf("%s\n", "AST");
+  printf("\n%s\n", "AST");
+  /*
   printf("%s\n", parser->ast->value);
   printf("%s\n", parser->ast->children[0].value);
   printf("%s\n", parser->ast->children[1].value);
   printf("%s\n", parser->ast->children[2].value);
   printf("%s\n", parser->ast->children[3].value);
+  */
 
-
+  print_ast(parser->ast);
   /* Print contents of symbol table */
   // print_symbol_table(lexer->symtable);
 
