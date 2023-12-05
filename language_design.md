@@ -32,19 +32,34 @@ Chat Gippity has some ideas
 ```
 
 
-# BNF Spec
+# EBNF Spec
+
+## ENBF TOC
+
+The following represents a proposed ISO/IEC 14977 standard, by R. S. Scowen, page 7, tables 1 and 2.
+
+| Usage                 | Notation         | Alternative          | Meaning         |
+|-----------------------|------------------|----------------------|-----------------|
+| definition            | `=`              |                      |                 |
+| concatenation         | `,`              |                      |                 |
+| termination           | `;`              | `.`                  |                 |
+| alternation           | `!`              | `/ or !`             |                 |
+| optional              | `[ ... ]`        | `(/ ... /)`          | none or once    |
+| repetition            | `{ ... }`        | `(: ... :)`          | none or more    |
+| grouping              | `( ... )`        |                      |                 |
+| terminal string       | `" ... "`        |                      |                 |
+| terminal string       | `' ... '`        |                      |                 |
+| comment               | `(* ... *)`      |                      |                 |
+| special sequence      | `? ... ?`        |                      |                 |
+| exception             | `-`              |                      |                 |
+
 ``` 
-program = block "." .
+program = block .
 
-block
+block = { <VarDecl> }
 
-----------------------------
-statement = identifier ":=" expression 
+VarDecl = <Type> <Identifier> ASSIGN <String Literal> SEMI
 
+Type = STR | INT | BOOL
 
-----------------------------
-condition
-
-term factor
-
-factor = ident | number | expression
+```
