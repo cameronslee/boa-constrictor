@@ -1,11 +1,3 @@
 string foobar = "foo";
+string barfoo = "heehoo";
 
-string barfoo = "foo";
-
-fn hello() {
-  print("HALLO");
-
-}
-
-bind(barfoo);
-constrict(barfoo);

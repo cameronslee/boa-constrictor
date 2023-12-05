@@ -31,3 +31,35 @@ Chat Gippity has some ideas
 20. **Hug**: A function for grouping or nesting code blocks or elements.
 ```
 
+
+# EBNF Spec
+
+## ENBF TOC
+
+The following represents a proposed ISO/IEC 14977 standard, by R. S. Scowen, page 7, tables 1 and 2.
+
+| Usage                 | Notation         | Alternative          | Meaning         |
+|-----------------------|------------------|----------------------|-----------------|
+| definition            | `=`              |                      |                 |
+| concatenation         | `,`              |                      |                 |
+| termination           | `;`              | `.`                  |                 |
+| alternation           | `!`              | `/ or !`             |                 |
+| optional              | `[ ... ]`        | `(/ ... /)`          | none or once    |
+| repetition            | `{ ... }`        | `(: ... :)`          | none or more    |
+| grouping              | `( ... )`        |                      |                 |
+| terminal string       | `" ... "`        |                      |                 |
+| terminal string       | `' ... '`        |                      |                 |
+| comment               | `(* ... *)`      |                      |                 |
+| special sequence      | `? ... ?`        |                      |                 |
+| exception             | `-`              |                      |                 |
+
+``` 
+program = block .
+
+block = { <VarDecl> }
+
+VarDecl = <Type> <Identifier> ASSIGN <String Literal> SEMI
+
+Type = STR | INT | BOOL
+
+```
