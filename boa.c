@@ -11,7 +11,7 @@
 #define LEX_BUFF_CAPACITY 128 // lexer buffer capacity
 #define MAX_OPERATOR_LEN 2 // language specific rule
 
-#define MAX_CHILDREN 100 //TODO TEMPORARY SIZE FOR AST!!!!!!!!!!!!!!!!!!!!!
+#define MAX_CHILDREN 100 //FIXME TEMPORARY SIZE FOR AST!!!!!!!!!!!!!!!!!!!!!
 
 #define DONE 69420 // lexer done reading file buffer
 #define ERROR 42069
@@ -184,7 +184,7 @@ int lookup(symtable_T *t, char lexeme[]) {
 int insert(symtable_T *t, char lexeme[], token_name_T type) {
   int len;
   len = strlen(lexeme);
-  //TODO need to allocate more memory
+  //FIXME need to allocate more memory
   if ((unsigned long)(t->last_pos + 1) >= t->capacity) {
     perror("error: symbol table full");
     exit(1);
@@ -302,7 +302,8 @@ char peek(lexer_T *lexer, int offset) {
 /* Peeks at next token in file buffer 
  * returns token type on success, error on failure */
 token_name_T peek_next_token(lexer_T *lexer) {
-  int p,b = 0;
+  int p = 0;
+  int b = 0;
   char buf[LEX_BUFF_CAPACITY];
   token_name_T name;
   char curr;
@@ -321,8 +322,6 @@ token_name_T peek_next_token(lexer_T *lexer) {
     buf[b] = lexer->current;
     curr = lexer->current;
     while (isalnum(curr)) {
-
-      printf("cur: %c \n", curr);
       b += 1;
       curr = peek(lexer, b);
       buf[b] = curr;
@@ -354,6 +353,23 @@ token_name_T peek_next_token(lexer_T *lexer) {
         buf[b+1] = '\0';
         return LITERAL;
       }
+    }
+  }
+
+  /* peek numeric literal */
+  else if (isdigit(lexer->current)) {
+    b = 0;
+    printf("IN NUMERIC PEEK %c", lexer->current);
+    buf[b] = lexer->current;
+    curr = lexer->current;
+    while (curr != -1) {
+      b += 1;
+      curr = peek(lexer,b);
+      if (!isdigit(curr)) {
+        buf[b+1] = '\0';
+        return LITERAL;
+      }
+      buf[b] = curr;
     }
   }
 
@@ -444,6 +460,24 @@ int lexer_analyze(lexer_T *lexer) {
     if (res == -1) {
       perror("error: missing a closing double quote");
       exit(1);
+    }
+  }
+
+  // Integer
+  else if (isdigit(lexer->current)) {
+    lex_buff[b] = lexer->current;
+    char curr = lexer->current;
+    while (curr != -1) {
+      b += 1;
+      curr = peek(lexer,b);
+      if (!isdigit(curr)) {
+        lex_buff[b] = '\0';
+        p = insert(lexer->symtable, lex_buff, LITERAL);
+        for (int i = 0; i < b; i++) lexer_advance(lexer);
+        return p;
+      }
+
+      lex_buff[b] = curr;
     }
   }
 
@@ -541,7 +575,7 @@ node_T *parse_var_decl(lexer_T *lexer) {
   n->num_children++;
   n->children[1] = *parse(lexer); //parse assign
   n->num_children++;
-  n->children[2] = *parse(lexer); // parse String Literal TODO should be an expression
+  n->children[2] = *parse(lexer); // parse Literal TODO should be an expression
   n->num_children++;
   n->children[3] = *parse(lexer); // parse semi 
   n->num_children++;
@@ -554,7 +588,7 @@ node_T *parse_identifier(lexer_T *lexer) {
   return new_node(lexer->symtable->table[p]);
 }
 
-node_T *parse_string_literal(lexer_T *lexer) {
+node_T *parse_literal(lexer_T *lexer) {
   int p = lexer_analyze(lexer);
   return new_node(lexer->symtable->table[p]);
 }
@@ -579,7 +613,7 @@ node_T *parse(lexer_T *lexer) {
 
   // Build AST
   switch (curr) {
-    case (STR || INT): 
+    case (STR): 
       return parse_var_decl(lexer); 
     case (INT): 
       return parse_var_decl(lexer); 
@@ -589,13 +623,13 @@ node_T *parse(lexer_T *lexer) {
     case (IDENTIFIER): 
       return parse_identifier(lexer);
     case (LITERAL): 
-      return parse_string_literal(lexer);
+      return parse_literal(lexer);
     case (ASSIGN): 
       return parse_assign_op(lexer);
     case (SEMI): 
       return parse_semi(lexer);
     default:
-      printf("%s", get_token_name(curr));
+      printf("Error with token: %s", get_token_name(curr));
       perror("error: unable to construct AST");
       exit(1);
   }
@@ -681,13 +715,6 @@ int main(int argc, char **argv) {
 
   // parser should have an AST setup now
   printf("\n%s\n", "AST");
-  /*
-  printf("%s\n", parser->ast->value);
-  printf("%s\n", parser->ast->children[0].value);
-  printf("%s\n", parser->ast->children[1].value);
-  printf("%s\n", parser->ast->children[2].value);
-  printf("%s\n", parser->ast->children[3].value);
-  */
 
   print_ast(parser->ast);
   /* Print contents of symbol table */
