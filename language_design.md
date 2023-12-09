@@ -53,13 +53,67 @@ The following represents a proposed ISO/IEC 14977 standard, by R. S. Scowen, pag
 | special sequence      | `? ... ?`        |                      |                 |
 | exception             | `-`              |                      |                 |
 
-``` 
-program = block .
 
-block = { <VarDecl> }
+### Tokens
+COMMA,
+OCB,
+CCB,
+OP,
+CP,
+OS,
+CS,
+DOT,
+EQ,
+ADD,
+SUB,
+MUL,
+GT,
+LT,
+ASSIGN,
+INT,
+STR,
+BOOL,
+PRINT,
+BIND,
+CONSTRICT,
+FN,
+RETURN,
+
+---------------------------------------------------------------------------------------------------------
+
+# Grammar
+``` 
+
+
+Program = Block 
+
+Block = { <VarDecl> | <FuncDecl> }
 
 VarDecl = <Type> <Identifier> ASSIGN <String Literal> SEMI
 
 Type = STR | INT | BOOL
 
+Identifier = 
+
+-------------------------------------------------------------------------------------
+
+FuncDecl = FN <Identifier> OP <Params> CP OCB <statement> CCB
+
+<Params> = <ParamList>
+
+<ParamList> = { <Type> <ParamIdentifier> COMMA } | <Type> <ParamIdentifier>
+
+-------------------------------------------------------------------------------------
+
+Statement = <ExpressionStatement> | <ReturnStatement>
+
+ExpressionStatement = <Expression> SEMI | SEMI
+
+ReturnStatemnt = RETURN SEMI | RETURN <Expression>
+
+-------------------------------------------------------------------------------------
+
+Expression = <SimpleExpression>
+
+SimpleExpression =  
 ```
